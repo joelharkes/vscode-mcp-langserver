@@ -1,0 +1,58 @@
+{
+  "name": "mcp-langserver",
+  "displayName": "MCP Language Server Bridge",
+  "description": "Expose VSCode language server features as MCP tools for Claude Code",
+  "version": "0.0.1",
+  "publisher": "joelharkes",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mcp-langserver.showSetupInstructions",
+        "title": "MCP Langserver: Show Setup Instructions"
+      }
+    ],
+    "configuration": {
+      "title": "MCP Language Server Bridge",
+      "properties": {
+        "mcpLangserver.port": {
+          "type": "number",
+          "default": 3333,
+          "description": "HTTP port for the MCP server"
+        },
+        "mcpLangserver.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start MCP server automatically when VSCode opens"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.0",
+    "express": "^4.21.0",
+    "zod": "^3.24.0"
+  }
+}
