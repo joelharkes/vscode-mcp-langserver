@@ -51,6 +51,7 @@ async function showSetupInstructions() {
     {
       mcpServers: {
         'vscode-langserver': {
+          type: 'http',
           url: `http://localhost:${port}/mcp`,
         },
       },
@@ -60,7 +61,6 @@ async function showSetupInstructions() {
   );
 
   const statusText = running ? 'running' : 'NOT running';
-  const message = `MCP Language Server is ${statusText} on port ${port}.\n\nAdd this to your .mcp.json:\n${configSnippet}`;
 
   const action = await vscode.window.showInformationMessage(
     `MCP Language Server is ${statusText} on port ${port}. Copy config to clipboard?`,

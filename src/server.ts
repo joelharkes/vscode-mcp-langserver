@@ -25,10 +25,30 @@ export async function startServer(context: vscode.ExtensionContext): Promise<voi
   const app = express();
   app.use(express.json());
 
+  // Ensure Accept header includes text/event-stream for MCP SDK compatibility.
+  // The SDK validates this before checking enableJsonResponse, and @hono/node-server
+  // reads from rawHeaders, so we must patch both.
+  app.use('/mcp', (req, _res, next) => {
+    const accept = req.headers['accept'] || '';
+    if (!accept.includes('text/event-stream')) {
+      const newAccept = accept ? `${accept}, text/event-stream` : 'application/json, text/event-stream';
+      req.headers['accept'] = newAccept;
+      // Also patch rawHeaders (array of [name, value, name, value, ...])
+      const idx = req.rawHeaders.findIndex((h) => h.toLowerCase() === 'accept');
+      if (idx !== -1 && idx + 1 < req.rawHeaders.length) {
+        req.rawHeaders[idx + 1] = newAccept;
+      } else {
+        req.rawHeaders.push('Accept', newAccept);
+      }
+    }
+    next();
+  });
+
   // Streamable HTTP endpoint (stateless)
   app.post('/mcp', async (req, res) => {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
+      enableJsonResponse: true, // allow clients that only Accept application/json
     });
 
     res.on('close', () => {
