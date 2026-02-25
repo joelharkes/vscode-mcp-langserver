@@ -1,0 +1,148 @@
+# VSCode MCP Language Server Bridge Extension
+
+## Context
+
+Claude Code can connect to MCP servers to gain new tools. VSCode already runs language servers (TypeScript, Python, etc.) that provide rich code intelligence. This extension bridges the gap: it runs an MCP server inside VSCode that exposes language server features as MCP tools, letting Claude Code access diagnostics, go-to-definition, hover info, completions, and refactoring capabilities.
+
+**Key insight:** VSCode's `vscode.commands.executeCommand` APIs (`vscode.executeDefinitionProvider`, etc.) are **language-agnostic** — they work for any language that has a registered provider. So this extension is inherently language-agnostic from day one, even though we'll test with TypeScript first.
+
+## Architecture
+
+```
+Claude Code  ──(Streamable HTTP)──>  VSCode Extension (MCP Server)  ──(VSCode API)──>  Language Servers
+```
+
+- **Transport:** Streamable HTTP (single POST endpoint on localhost)
+- **MCP SDK:** `@modelcontextprotocol/sdk` with `NodeStreamableHTTPServerTransport`
+- **HTTP Server:** Express (well-tested with MCP SDK, lightweight enough for extension)
+- **Session mode:** Stateless (each request independent — simpler, sufficient for local use)
+- **Auto-start:** Extension activates on workspace open, starts HTTP server automatically
+
+## Key Design Decisions
+
+1. **Language-agnostic by default:** All tools use VSCode's generic `executeCommand` APIs, not TS-specific ones. Works with any language that has a registered provider.
+2. **Stateless HTTP:** No session management needed. Simpler code, no cleanup issues.
+3. **`apply` parameter on refactoring tools:** Claude can choose to preview changes (get the edit list) or apply directly. Defaults to preview (safer).
+4. **Relative file paths:** Tools accept paths relative to workspace root. The extension resolves them against `vscode.workspace.workspaceFolders[0]`.
+5. **Express for HTTP:** Proven pattern with the MCP SDK. Avoids compatibility issues with raw `http` module.
+
+## VSCode Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `mcpLangserver.port` | `3333` | HTTP port for the MCP server |
+| `mcpLangserver.autoStart` | `true` | Start MCP server automatically on workspace open |
+
+---
+
+## TODO
+
+### Step 1: Scaffold the VSCode Extension
+- [ ] Run `yo code` to scaffold TypeScript VSCode extension (ID: `mcp-langserver`)
+- [ ] Set activation event to `onStartupFinished`
+- [ ] Install deps: `@modelcontextprotocol/sdk`, `express`, `zod`
+- [ ] Install dev deps: `@types/express`
+- [ ] Set up project structure (`src/tools/`, `src/utils/`)
+
+### Step 2: MCP Server + HTTP Transport (MVP infrastructure)
+- [ ] Create `src/server.ts` — MCP Server + Express + Streamable HTTP transport (stateless)
+- [ ] Create `src/extension.ts` — activate/deactivate lifecycle wiring
+- [ ] Add VSCode setting for port (`mcpLangserver.port`, default `3333`)
+- [ ] Add VSCode setting for auto-start (`mcpLangserver.autoStart`, default `true`)
+- [ ] Verify: extension starts, HTTP server listens, curl initialize request succeeds
+
+### Step 3: Implement `get_diagnostics` Tool (MVP)
+- [ ] Create `src/utils/vscode-bridge.ts` — `resolveUri()`, `diagnosticToJson()`, `locationToJson()`
+- [ ] Create `src/utils/position.ts` — shared Zod schemas for file/position params
+- [ ] Create `src/tools/diagnostics.ts` — `get_diagnostics` tool using `vscode.languages.getDiagnostics()`
+- [ ] Create `src/tools/index.ts` — tool registration barrel
+- [ ] Verify end-to-end: Claude Code connects and calls `get_diagnostics`
+
+### Step 4: Implement Read-Only Tools
+- [ ] `get_hover` — `vscode.executeHoverProvider` → markdown content
+- [ ] `go_to_definition` — `vscode.executeDefinitionProvider` → locations
+- [ ] `find_references` — `vscode.executeReferenceProvider` → references
+- [ ] `get_completions` — `vscode.executeCompletionItemProvider` → items (top N)
+- [ ] `get_document_symbols` — `vscode.executeDocumentSymbolProvider` → symbol tree
+
+### Step 5: Implement Refactoring Tools
+- [ ] `rename_symbol` — `vscode.executeRenameProvider` → WorkspaceEdit (with `apply` param)
+- [ ] `move_file` (stretch) — WorkspaceEdit `renameFile` + update imports
+
+### Step 6: Setup UX
+- [ ] VSCode command: `MCP Langserver: Show Setup Instructions` (notification + copy to clipboard)
+- [ ] Status bar item showing MCP server status (running/stopped + port)
+
+---
+
+## Implementation Details
+
+### Project structure
+```
+src/
+  extension.ts          # Extension entry point (activate/deactivate)
+  server.ts             # MCP server setup + Express HTTP server
+  tools/
+    index.ts            # Tool registration barrel
+    diagnostics.ts      # get_diagnostics tool
+    hover.ts            # get_hover tool
+    definition.ts       # go_to_definition tool
+    references.ts       # find_references tool
+    completions.ts      # get_completions tool
+    symbols.ts          # get_document_symbols tool
+    rename.ts           # rename_symbol tool
+  utils/
+    vscode-bridge.ts    # Helpers to convert VSCode types to plain JSON
+    position.ts         # Common parameter schemas (file, line, character)
+```
+
+### Tool Specifications
+
+**`get_diagnostics`**
+- Params: `{ file?: string }` (optional — if omitted, returns all workspace diagnostics)
+- API: `vscode.languages.getDiagnostics(uri?)`
+- Returns: `Array<{ file, line, character, endLine, endCharacter, message, severity, source, code }>`
+
+**`get_hover`**
+- Params: `{ file: string, line: number, character: number }`
+- API: `vscode.executeHoverProvider(uri, position)`
+- Returns: `{ contents: string[] }` (markdown strings)
+
+**`go_to_definition`**
+- Params: `{ file: string, line: number, character: number }`
+- API: `vscode.executeDefinitionProvider(uri, position)`
+- Returns: `{ locations: Array<{ file, line, character }> }`
+
+**`find_references`**
+- Params: `{ file: string, line: number, character: number }`
+- API: `vscode.executeReferenceProvider(uri, position)`
+- Returns: `{ references: Array<{ file, line, character }> }`
+
+**`get_completions`**
+- Params: `{ file: string, line: number, character: number }`
+- API: `vscode.executeCompletionItemProvider(uri, position)`
+- Returns: `{ items: Array<{ label, kind, detail, documentation }> }` (truncated to top N)
+
+**`get_document_symbols`**
+- Params: `{ file: string }`
+- API: `vscode.executeDocumentSymbolProvider(uri)`
+- Returns: `{ symbols: Array<{ name, kind, range, children }> }` (tree structure)
+
+**`rename_symbol`**
+- Params: `{ file: string, line: number, character: number, newName: string, apply?: boolean }`
+- API: `vscode.executeRenameProvider(uri, position, newName)` → WorkspaceEdit
+- If `apply: false` (default): serialize edit to JSON
+- If `apply: true`: call `vscode.workspace.applyEdit(edit)`
+
+**`move_file`** (stretch goal)
+- Params: `{ oldPath: string, newPath: string, apply?: boolean }`
+- Creates WorkspaceEdit with `renameFile`, triggers import updates
+- **Caveat:** Import updating relies on language extensions participating in VSCode's `onWillRenameFiles` event. TS and Pylance do; not all languages will. Our code stays generic — result quality depends on the language server.
+
+### Verification
+
+1. **Build:** `npm run compile` should succeed
+2. **Run extension:** F5 in VSCode → Extension Development Host
+3. **Test MCP server:** `curl -X POST http://localhost:3333/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test"}},"id":1}'`
+4. **Test with Claude Code:** Add MCP config to `.mcp.json`, ask Claude to check for TS errors
+5. **Test each tool:** Open a TS project, verify each tool returns sensible results
