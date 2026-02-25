@@ -20,6 +20,13 @@ export async function activate(context: vscode.ExtensionContext) {
     try {
       await startServer(context);
       updateStatusBar(true);
+
+      // Show setup popup on first activation
+      const hasShownWelcome = context.globalState.get<boolean>('hasShownWelcome', false);
+      if (!hasShownWelcome) {
+        context.globalState.update('hasShownWelcome', true);
+        showSetupInstructions();
+      }
     } catch {
       updateStatusBar(false);
     }
