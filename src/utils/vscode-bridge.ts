@@ -39,16 +39,56 @@ export function toRelativePath(uri: vscode.Uri): string {
 }
 
 /**
- * Convert a VSCode Location to a plain JSON object.
+ * Format a Location as a 1-based "file:line:col" string.
  */
-export function locationToJson(loc: vscode.Location) {
-  return {
-    file: toRelativePath(loc.uri),
-    line: loc.range.start.line,
-    character: loc.range.start.character,
-    endLine: loc.range.end.line,
-    endCharacter: loc.range.end.character,
-  };
+export function formatLocation(loc: vscode.Location): string {
+  return `${toRelativePath(loc.uri)}:${loc.range.start.line + 1}:${loc.range.start.character + 1}`;
+}
+
+/**
+ * Normalize a Location or LocationLink to a Location.
+ */
+export function normalizeLocation(item: vscode.Location | vscode.LocationLink): vscode.Location {
+  if ('targetUri' in item) {
+    return new vscode.Location(item.targetUri, item.targetRange);
+  }
+  return item;
+}
+
+/**
+ * Format a list of locations grouped by file (1-based lines).
+ */
+export function formatLocationsGrouped(locations: vscode.Location[], label: string): string {
+  if (locations.length === 0) {
+    return `No ${label} found.`;
+  }
+
+  // Group by file
+  const byFile = new Map<string, Array<{ line: number; col: number }>>();
+  for (const loc of locations) {
+    const file = toRelativePath(loc.uri);
+    if (!byFile.has(file)) {
+      byFile.set(file, []);
+    }
+    byFile.get(file)!.push({
+      line: loc.range.start.line + 1,
+      col: loc.range.start.character + 1,
+    });
+  }
+
+  const fileCount = byFile.size;
+  const summary = `${locations.length} ${label} in ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`;
+
+  const lines: string[] = [summary, ''];
+  for (const [file, positions] of byFile) {
+    lines.push(file);
+    for (const pos of positions) {
+      lines.push(`  ${pos.line}:${pos.col}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
 }
 
 const severityMap: Record<number, string> = {
@@ -144,6 +184,110 @@ export function hoverToStrings(hover: vscode.Hover): string[] {
     // MarkedString with language
     return `\`\`\`${content.language}\n${content.value}\n\`\`\``;
   });
+}
+
+/**
+ * Map SymbolKind enum to readable string.
+ */
+export function symbolKindName(kind: vscode.SymbolKind): string {
+  const names: Record<number, string> = {
+    [vscode.SymbolKind.File]: 'File',
+    [vscode.SymbolKind.Module]: 'Module',
+    [vscode.SymbolKind.Namespace]: 'Namespace',
+    [vscode.SymbolKind.Package]: 'Package',
+    [vscode.SymbolKind.Class]: 'Class',
+    [vscode.SymbolKind.Method]: 'Method',
+    [vscode.SymbolKind.Property]: 'Property',
+    [vscode.SymbolKind.Field]: 'Field',
+    [vscode.SymbolKind.Constructor]: 'Constructor',
+    [vscode.SymbolKind.Enum]: 'Enum',
+    [vscode.SymbolKind.Interface]: 'Interface',
+    [vscode.SymbolKind.Function]: 'Function',
+    [vscode.SymbolKind.Variable]: 'Variable',
+    [vscode.SymbolKind.Constant]: 'Constant',
+    [vscode.SymbolKind.String]: 'String',
+    [vscode.SymbolKind.Number]: 'Number',
+    [vscode.SymbolKind.Boolean]: 'Boolean',
+    [vscode.SymbolKind.Array]: 'Array',
+    [vscode.SymbolKind.Object]: 'Object',
+    [vscode.SymbolKind.Key]: 'Key',
+    [vscode.SymbolKind.Null]: 'Null',
+    [vscode.SymbolKind.EnumMember]: 'EnumMember',
+    [vscode.SymbolKind.Struct]: 'Struct',
+    [vscode.SymbolKind.Event]: 'Event',
+    [vscode.SymbolKind.Operator]: 'Operator',
+    [vscode.SymbolKind.TypeParameter]: 'TypeParameter',
+  };
+  return names[kind] ?? 'Unknown';
+}
+
+/**
+ * Map CompletionItemKind enum to readable string.
+ */
+export function completionKindName(kind: vscode.CompletionItemKind | undefined): string {
+  if (kind === undefined) return '';
+  const names: Record<number, string> = {
+    [vscode.CompletionItemKind.Text]: 'Text',
+    [vscode.CompletionItemKind.Method]: 'Method',
+    [vscode.CompletionItemKind.Function]: 'Function',
+    [vscode.CompletionItemKind.Constructor]: 'Constructor',
+    [vscode.CompletionItemKind.Field]: 'Field',
+    [vscode.CompletionItemKind.Variable]: 'Variable',
+    [vscode.CompletionItemKind.Class]: 'Class',
+    [vscode.CompletionItemKind.Interface]: 'Interface',
+    [vscode.CompletionItemKind.Module]: 'Module',
+    [vscode.CompletionItemKind.Property]: 'Property',
+    [vscode.CompletionItemKind.Unit]: 'Unit',
+    [vscode.CompletionItemKind.Value]: 'Value',
+    [vscode.CompletionItemKind.Enum]: 'Enum',
+    [vscode.CompletionItemKind.Keyword]: 'Keyword',
+    [vscode.CompletionItemKind.Snippet]: 'Snippet',
+    [vscode.CompletionItemKind.Color]: 'Color',
+    [vscode.CompletionItemKind.File]: 'File',
+    [vscode.CompletionItemKind.Reference]: 'Reference',
+    [vscode.CompletionItemKind.Folder]: 'Folder',
+    [vscode.CompletionItemKind.EnumMember]: 'EnumMember',
+    [vscode.CompletionItemKind.Constant]: 'Constant',
+    [vscode.CompletionItemKind.Struct]: 'Struct',
+    [vscode.CompletionItemKind.Event]: 'Event',
+    [vscode.CompletionItemKind.Operator]: 'Operator',
+    [vscode.CompletionItemKind.TypeParameter]: 'TypeParameter',
+  };
+  return names[kind] ?? '';
+}
+
+/**
+ * Format a DocumentSymbol tree as indented text (1-based lines).
+ */
+export function formatSymbolTree(symbols: vscode.DocumentSymbol[], indent: number = 0): string[] {
+  const lines: string[] = [];
+  const pad = '  '.repeat(indent);
+  for (const sym of symbols) {
+    const kind = symbolKindName(sym.kind);
+    const startLine = sym.range.start.line + 1;
+    const startCol = sym.range.start.character + 1;
+    const endLine = sym.range.end.line + 1;
+    const endCol = sym.range.end.character + 1;
+    lines.push(`${pad}${sym.name}  ${kind}  ${startLine}:${startCol}-${endLine}:${endCol}`);
+    if (sym.children && sym.children.length > 0) {
+      lines.push(...formatSymbolTree(sym.children, indent + 1));
+    }
+  }
+  return lines;
+}
+
+/**
+ * Count all symbols including nested children.
+ */
+export function countSymbols(symbols: vscode.DocumentSymbol[]): number {
+  let count = 0;
+  for (const sym of symbols) {
+    count++;
+    if (sym.children) {
+      count += countSymbols(sym.children);
+    }
+  }
+  return count;
 }
 
 /**

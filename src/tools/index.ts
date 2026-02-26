@@ -1,16 +1,19 @@
 import type { ToolServer } from './register';
 import { registerDiagnosticsTool } from './diagnostics';
+import { registerHoverTool } from './hover';
+import { registerDefinitionTool } from './definition';
+import { registerReferencesTool } from './references';
+import { registerCompletionsTool } from './completions';
+import { registerSymbolsTool } from './symbols';
 
 /**
  * Register all MCP tools on the server.
  */
 export function registerAllTools(server: ToolServer) {
   registerDiagnosticsTool(server);
-  // Future tools will be registered here:
-  // registerHoverTool(server);
-  // registerDefinitionTool(server);
-  // registerReferencesTool(server);
-  // registerCompletionsTool(server);
-  // registerSymbolsTool(server);
-  // registerRenameTool(server);
+  registerHoverTool(server);
+  registerDefinitionTool(server);
+  registerReferencesTool(server);
+  registerCompletionsTool(server);
+  registerSymbolsTool(server);
 }
