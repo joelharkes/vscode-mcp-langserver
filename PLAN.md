@@ -37,26 +37,25 @@ Claude Code  ──(Streamable HTTP)──>  VSCode Extension (MCP Server)  ─�
 
 ## TODO
 
-### Step 1: Scaffold the VSCode Extension
-- [ ] Run `yo code` to scaffold TypeScript VSCode extension (ID: `mcp-langserver`)
-- [ ] Set activation event to `onStartupFinished`
-- [ ] Install deps: `@modelcontextprotocol/sdk`, `express`, `zod`
-- [ ] Install dev deps: `@types/express`
-- [ ] Set up project structure (`src/tools/`, `src/utils/`)
+### Step 1: Scaffold the VSCode Extension ✅
+- [x] Scaffold TypeScript VSCode extension (ID: `mcp-langserver`)
+- [x] Set activation event to `onStartupFinished`
+- [x] Install deps: `@modelcontextprotocol/sdk`, `express`, `zod`
+- [x] Set up project structure (`src/tools/`, `src/utils/`)
 
-### Step 2: MCP Server + HTTP Transport (MVP infrastructure)
-- [ ] Create `src/server.ts` — MCP Server + Express + Streamable HTTP transport (stateless)
-- [ ] Create `src/extension.ts` — activate/deactivate lifecycle wiring
-- [ ] Add VSCode setting for port (`mcpLangserver.port`, default `3333`)
-- [ ] Add VSCode setting for auto-start (`mcpLangserver.autoStart`, default `true`)
-- [ ] Verify: extension starts, HTTP server listens, curl initialize request succeeds
+### Step 2: MCP Server + HTTP Transport ✅
+- [x] Create `src/server.ts` — MCP Server + Express + Streamable HTTP transport (stateless)
+- [x] Create `src/extension.ts` — activate/deactivate lifecycle wiring
+- [x] Add VSCode settings for port and auto-start
+- [x] Accept header middleware workaround for MCP SDK compatibility
+- [x] Verify end-to-end with Claude Code
 
-### Step 3: Implement `get_diagnostics` Tool (MVP)
-- [ ] Create `src/utils/vscode-bridge.ts` — `resolveUri()`, `diagnosticToJson()`, `locationToJson()`
-- [ ] Create `src/utils/position.ts` — shared Zod schemas for file/position params
-- [ ] Create `src/tools/diagnostics.ts` — `get_diagnostics` tool using `vscode.languages.getDiagnostics()`
-- [ ] Create `src/tools/index.ts` — tool registration barrel
-- [ ] Verify end-to-end: Claude Code connects and calls `get_diagnostics`
+### Step 3: Implement `get_diagnostics` Tool ✅
+- [x] Create `src/utils/vscode-bridge.ts` — `resolveUri()`, `formatDiagnosticsReport()`, `locationToJson()`
+- [x] Create `src/utils/position.ts` — shared Zod schemas for file/position params
+- [x] Create `src/tools/diagnostics.ts` — compiler-style output (1-based lines, grouped by file, summary counts, related info)
+- [x] Create `src/tools/register.ts` — wrapper to bypass TS2589 deep Zod generics
+- [x] Verify end-to-end: Claude Code connects and calls `get_diagnostics`
 
 ### Step 4: Implement Read-Only Tools
 - [ ] `get_hover` — `vscode.executeHoverProvider` → markdown content
@@ -69,9 +68,10 @@ Claude Code  ──(Streamable HTTP)──>  VSCode Extension (MCP Server)  ─�
 - [ ] `rename_symbol` — `vscode.executeRenameProvider` → WorkspaceEdit (with `apply` param)
 - [ ] `move_file` (stretch) — WorkspaceEdit `renameFile` + update imports
 
-### Step 6: Setup UX
-- [ ] VSCode command: `MCP Langserver: Show Setup Instructions` (notification + copy to clipboard)
-- [ ] Status bar item showing MCP server status (running/stopped + port)
+### Step 6: Setup UX ✅
+- [x] VSCode command: `MCP Langserver: Show Setup Instructions` (notification + copy to clipboard)
+- [x] Status bar item showing MCP server status (running/stopped + port)
+- [x] First-run welcome popup using `globalState`
 
 ---
 
@@ -101,7 +101,7 @@ src/
 **`get_diagnostics`**
 - Params: `{ file?: string }` (optional — if omitted, returns all workspace diagnostics)
 - API: `vscode.languages.getDiagnostics(uri?)`
-- Returns: `Array<{ file, line, character, endLine, endCharacter, message, severity, source, code }>`
+- Returns: Compiler-style text report (1-based lines, grouped by file, summary counts, related info)
 
 **`get_hover`**
 - Params: `{ file: string, line: number, character: number }`
