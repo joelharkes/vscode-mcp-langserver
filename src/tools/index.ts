@@ -1,11 +1,12 @@
-import type { ToolServer } from './register';
-import { registerDiagnosticsTool } from './diagnostics';
-import { registerHoverTool } from './hover';
-import { registerDefinitionTool } from './definition';
-import { registerReferencesTool } from './references';
-import { registerCompletionsTool } from './completions';
-import { registerSymbolsTool } from './symbols';
-import { registerRenameTool, registerMoveFileTool } from './rename';
+import type { ToolServer } from '../utils/register';
+import { registerDiagnosticsTool } from './get_diagnostics';
+import { registerHoverTool } from './get_hover';
+import { registerDefinitionTool } from './go_to_definition';
+import { registerReferencesTool } from './find_references';
+import { registerCompletionsTool } from './get_completions';
+import { registerSymbolsTool } from './get_document_symbols';
+import { registerRenameTool } from './rename_symbol';
+import { registerMoveFileTool } from './move_file';
 
 /**
  * Register all MCP tools on the server.

@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
-import { z } from 'zod';
 import { resolveUri, hoverToStrings } from '../utils/vscode-bridge';
 import { positionParams } from '../utils/position';
-import { type ToolServer, registerTool } from './register';
+import { type ToolServer, registerTool } from '../utils/register';
 
 export function registerHoverTool(server: ToolServer) {
   registerTool(

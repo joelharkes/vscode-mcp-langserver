@@ -57,16 +57,18 @@ Claude Code  ──(Streamable HTTP)──>  VSCode Extension (MCP Server)  ─�
 - [x] Create `src/tools/register.ts` — wrapper to bypass TS2589 deep Zod generics
 - [x] Verify end-to-end: Claude Code connects and calls `get_diagnostics`
 
-### Step 4: Implement Read-Only Tools
-- [ ] `get_hover` — `vscode.executeHoverProvider` → markdown content
-- [ ] `go_to_definition` — `vscode.executeDefinitionProvider` → locations
-- [ ] `find_references` — `vscode.executeReferenceProvider` → references
-- [ ] `get_completions` — `vscode.executeCompletionItemProvider` → items (top N)
-- [ ] `get_document_symbols` — `vscode.executeDocumentSymbolProvider` → symbol tree
+### Step 4: Implement Read-Only Tools ✅
+- [x] `get_hover` — `vscode.executeHoverProvider` → markdown content
+- [x] `go_to_definition` — `vscode.executeDefinitionProvider` → locations (grouped by file)
+- [x] `find_references` — `vscode.executeReferenceProvider` → references (grouped by file)
+- [x] `get_completions` — `vscode.executeCompletionItemProvider` → items (default limit 50, sortable)
+- [x] `get_document_symbols` — `vscode.executeDocumentSymbolProvider` → indented symbol tree
+- [x] All tools use 1-based line/character input (converted to 0-based internally)
+- [x] All tools output AI-friendly text format (not JSON)
 
-### Step 5: Implement Refactoring Tools
-- [ ] `rename_symbol` — `vscode.executeRenameProvider` → WorkspaceEdit (with `apply` param)
-- [ ] `move_file` (stretch) — WorkspaceEdit `renameFile` + update imports
+### Step 5: Implement Refactoring Tools ✅
+- [x] `rename_symbol` — `vscode.executeRenameProvider` → WorkspaceEdit (with `apply` param)
+- [x] `move_file` (stretch) — WorkspaceEdit `renameFile` + update imports
 
 ### Step 6: Setup UX ✅
 - [x] VSCode command: `MCP Langserver: Show Setup Instructions` (notification + copy to clipboard)
@@ -104,29 +106,29 @@ src/
 - Returns: Compiler-style text report (1-based lines, grouped by file, summary counts, related info)
 
 **`get_hover`**
-- Params: `{ file: string, line: number, character: number }`
+- Params: `{ file, line, character }` (1-based)
 - API: `vscode.executeHoverProvider(uri, position)`
-- Returns: `{ contents: string[] }` (markdown strings)
+- Returns: Markdown content (type signatures, documentation)
 
 **`go_to_definition`**
-- Params: `{ file: string, line: number, character: number }`
+- Params: `{ file, line, character }` (1-based)
 - API: `vscode.executeDefinitionProvider(uri, position)`
-- Returns: `{ locations: Array<{ file, line, character }> }`
+- Returns: Locations grouped by file (`file:line:col` format, 1-based)
 
 **`find_references`**
-- Params: `{ file: string, line: number, character: number }`
+- Params: `{ file, line, character }` (1-based)
 - API: `vscode.executeReferenceProvider(uri, position)`
-- Returns: `{ references: Array<{ file, line, character }> }`
+- Returns: References grouped by file with count summary
 
 **`get_completions`**
-- Params: `{ file: string, line: number, character: number }`
+- Params: `{ file, line, character, limit? }` (1-based, limit default 50)
 - API: `vscode.executeCompletionItemProvider(uri, position)`
-- Returns: `{ items: Array<{ label, kind, detail, documentation }> }` (truncated to top N)
+- Returns: Sorted text list: `label  kind  detail`
 
 **`get_document_symbols`**
-- Params: `{ file: string }`
+- Params: `{ file }`
 - API: `vscode.executeDocumentSymbolProvider(uri)`
-- Returns: `{ symbols: Array<{ name, kind, range, children }> }` (tree structure)
+- Returns: Indented symbol tree: `name  kind  line:col-line:col`
 
 **`rename_symbol`**
 - Params: `{ file: string, line: number, character: number, newName: string, apply?: boolean }`

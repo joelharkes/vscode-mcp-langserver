@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { resolveUri, formatSymbolTree, countSymbols } from '../utils/vscode-bridge';
 import { fileParam } from '../utils/position';
-import { type ToolServer, registerTool } from './register';
+import { type ToolServer, registerTool } from '../utils/register';
 
 const schema = {
   file: fileParam,

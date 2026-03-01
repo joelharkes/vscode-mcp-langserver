@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { resolveUri, formatLocationsGrouped } from '../utils/vscode-bridge';
 import { positionParams } from '../utils/position';
-import { type ToolServer, registerTool } from './register';
+import { type ToolServer, registerTool } from '../utils/register';
 
 export function registerReferencesTool(server: ToolServer) {
   registerTool(

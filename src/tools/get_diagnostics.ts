@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { z } from 'zod';
 import { resolveUri, formatDiagnosticsReport } from '../utils/vscode-bridge';
-import { type ToolServer, registerTool } from './register';
+import { type ToolServer, registerTool } from '../utils/register';
 
 const schema = {
   file: z.string().optional().describe('File path (relative to workspace root or absolute). If omitted, returns diagnostics for all files.'),
