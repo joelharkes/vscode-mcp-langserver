@@ -7,6 +7,9 @@ import { registerCompletionsTool } from './get_completions';
 import { registerSymbolsTool } from './get_document_symbols';
 import { registerRenameTool } from './rename_symbol';
 import { registerMoveFileTool } from './move_file';
+import { registerWorkspaceSymbolsTool } from './query_workspace_symbols';
+import { registerFindImportsTool } from './find_imports';
+import { registerDependencyGraphTool } from './get_dependency_graph';
 
 /**
  * Register all MCP tools on the server.
@@ -20,4 +23,7 @@ export function registerAllTools(server: ToolServer) {
   registerSymbolsTool(server);
   registerRenameTool(server);
   registerMoveFileTool(server);
+  registerWorkspaceSymbolsTool(server);
+  registerFindImportsTool(server);
+  registerDependencyGraphTool(server);
 }

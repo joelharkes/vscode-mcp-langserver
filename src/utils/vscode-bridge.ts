@@ -291,6 +291,156 @@ export function countSymbols(symbols: vscode.DocumentSymbol[]): number {
 }
 
 /**
+ * Format workspace symbols grouped by file.
+ */
+export function formatWorkspaceSymbols(symbols: vscode.SymbolInformation[]): string {
+  if (symbols.length === 0) {
+    return 'No symbols found.';
+  }
+
+  const byFile = new Map<string, vscode.SymbolInformation[]>();
+  for (const sym of symbols) {
+    const file = toRelativePath(sym.location.uri);
+    if (!byFile.has(file)) {
+      byFile.set(file, []);
+    }
+    byFile.get(file)!.push(sym);
+  }
+
+  const lines: string[] = [`${symbols.length} symbols`, ''];
+  for (const [file, syms] of byFile) {
+    lines.push(file);
+    for (const sym of syms) {
+      const kind = symbolKindName(sym.kind);
+      const line = sym.location.range.start.line + 1;
+      const col = sym.location.range.start.character + 1;
+      const container = sym.containerName ? `  (${sym.containerName})` : '';
+      lines.push(`  ${sym.name}  ${kind}  ${line}:${col}${container}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * Format import analysis results for multiple files.
+ */
+export function formatImportsReport(
+  results: Array<{ file: string; imports: Array<{ source: string; line: number; isRelative: boolean }> }>
+): string {
+  const totalImports = results.reduce((sum, r) => sum + r.imports.length, 0);
+
+  if (totalImports === 0) {
+    return 'No imports found.';
+  }
+
+  const lines: string[] = [
+    `${results.length} ${results.length === 1 ? 'file' : 'files'}, ${totalImports} imports`,
+    '',
+  ];
+
+  for (const { file, imports } of results) {
+    if (imports.length === 0) continue;
+    lines.push(`${file} (${imports.length} imports)`);
+    for (const imp of imports) {
+      const tag = imp.isRelative ? '  (relative)' : '';
+      lines.push(`  ${imp.line}: ${imp.source}${tag}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * Filter a DocumentSymbol tree to only symbols matching a kind name.
+ * Preserves parent symbols that have matching descendants.
+ */
+export function filterSymbolsByKind(
+  symbols: vscode.DocumentSymbol[],
+  kind: string
+): vscode.DocumentSymbol[] {
+  const kindLower = kind.toLowerCase();
+  const result: vscode.DocumentSymbol[] = [];
+
+  for (const sym of symbols) {
+    const kindMatches = symbolKindName(sym.kind).toLowerCase() === kindLower;
+    const filteredChildren = sym.children ? filterSymbolsByKind(sym.children, kind) : [];
+
+    if (kindMatches || filteredChildren.length > 0) {
+      // Clone the symbol with filtered children
+      const clone = Object.assign(Object.create(Object.getPrototypeOf(sym)), sym);
+      clone.children = kindMatches ? (sym.children || []) : filteredChildren;
+      result.push(clone);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Format symbols from multiple files.
+ */
+export function formatMultiFileSymbols(
+  results: Array<{ file: string; symbols: vscode.DocumentSymbol[]; count: number }>
+): string {
+  const totalSymbols = results.reduce((sum, r) => sum + r.count, 0);
+  const fileCount = results.length;
+
+  if (totalSymbols === 0) {
+    return 'No symbols found.';
+  }
+
+  const lines: string[] = [
+    `${totalSymbols} symbols in ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`,
+    '',
+  ];
+
+  for (const { file, symbols, count } of results) {
+    if (count === 0) continue;
+    lines.push(`${file} (${count} symbols)`);
+    lines.push(...formatSymbolTree(symbols, 1));
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * Format a dependency graph as an adjacency list.
+ */
+export function formatDependencyGraph(
+  graph: Map<string, { internal: string[]; external: string[] }>
+): string {
+  let totalEdges = 0;
+  for (const { internal, external } of graph.values()) {
+    totalEdges += internal.length + external.length;
+  }
+
+  const lines: string[] = [
+    `${graph.size} files, ${totalEdges} edges`,
+    '',
+  ];
+
+  for (const [file, { internal, external }] of graph) {
+    const parts: string[] = [];
+    if (internal.length > 0) parts.push(`${internal.length} internal`);
+    if (external.length > 0) parts.push(`${external.length} external`);
+    lines.push(`${file} (${parts.join(', ')})`);
+    for (const dep of internal) {
+      lines.push(`  → ${dep}`);
+    }
+    for (const dep of external) {
+      lines.push(`  [ext] ${dep}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+/**
  * Convert a WorkspaceEdit to a plain JSON object.
  */
 export function workspaceEditToJson(edit: vscode.WorkspaceEdit) {

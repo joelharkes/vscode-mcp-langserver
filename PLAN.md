@@ -75,6 +75,31 @@ Claude Code  ──(Streamable HTTP)──>  VSCode Extension (MCP Server)  ─�
 - [x] Status bar item showing MCP server status (running/stopped + port)
 - [x] First-run welcome popup using `globalState`
 
+### Step 7: Set Query Tools (Bulk Operations) ✅
+Current tools are point queries (single file, single symbol). This step adds set queries that operate across many files at once — addressing the gap where an AI would need hundreds of individual calls for bulk structural analysis.
+
+#### 7a. `query_workspace_symbols` tool ✅
+- [x] Add `formatWorkspaceSymbols()` to `src/utils/vscode-bridge.ts`
+- [x] Create `src/tools/query_workspace_symbols.ts`
+- [x] Register in `src/tools/index.ts`
+
+#### 7b. Import parser infrastructure + `find_imports` tool ✅
+- [x] Create `src/utils/import-parser.ts` — `parseImports(text, languageId)` with regex patterns for JS/TS, Python, Go, Rust, Java/Kotlin, C/C++
+- [x] Add `formatImportsReport()` to `src/utils/vscode-bridge.ts`
+- [x] Create `src/tools/find_imports.ts`
+- [x] Register in `src/tools/index.ts`
+
+#### 7c. Enhance `get_document_symbols` with glob + kind filter ✅
+- [x] Add `filterSymbolsByKind()` and `formatMultiFileSymbols()` to `src/utils/vscode-bridge.ts`
+- [x] Modify `src/tools/get_document_symbols.ts` — add optional `glob` and `kind` params
+- [x] Ensure backward compatibility (single `file` param still works identically)
+
+#### 7d. `get_dependency_graph` tool ✅
+- [x] Add `resolveImportPath()` to `src/utils/import-parser.ts`
+- [x] Add `formatDependencyGraph()` to `src/utils/vscode-bridge.ts`
+- [x] Create `src/tools/get_dependency_graph.ts`
+- [x] Register in `src/tools/index.ts`
+
 ---
 
 ## Implementation Details
@@ -82,20 +107,26 @@ Claude Code  ──(Streamable HTTP)──>  VSCode Extension (MCP Server)  ─�
 ### Project structure
 ```
 src/
-  extension.ts          # Extension entry point (activate/deactivate)
-  server.ts             # MCP server setup + Express HTTP server
+  extension.ts                    # Extension entry point (activate/deactivate)
+  server.ts                       # MCP server setup + Express HTTP server
   tools/
-    index.ts            # Tool registration barrel
-    diagnostics.ts      # get_diagnostics tool
-    hover.ts            # get_hover tool
-    definition.ts       # go_to_definition tool
-    references.ts       # find_references tool
-    completions.ts      # get_completions tool
-    symbols.ts          # get_document_symbols tool
-    rename.ts           # rename_symbol tool
+    index.ts                      # Tool registration barrel
+    get_diagnostics.ts            # get_diagnostics tool
+    get_hover.ts                  # get_hover tool
+    go_to_definition.ts           # go_to_definition tool
+    find_references.ts            # find_references tool
+    get_completions.ts            # get_completions tool
+    get_document_symbols.ts       # get_document_symbols tool (supports glob)
+    rename_symbol.ts              # rename_symbol tool
+    move_file.ts                  # move_file tool
+    query_workspace_symbols.ts    # query_workspace_symbols tool (set query)
+    find_imports.ts               # find_imports tool (set query)
+    get_dependency_graph.ts       # get_dependency_graph tool (set query)
   utils/
-    vscode-bridge.ts    # Helpers to convert VSCode types to plain JSON
-    position.ts         # Common parameter schemas (file, line, character)
+    vscode-bridge.ts              # Helpers to convert VSCode types to plain text
+    position.ts                   # Common parameter schemas (file, line, character)
+    register.ts                   # registerTool() wrapper (bypasses TS2589)
+    import-parser.ts              # Regex-based multi-language import parser
 ```
 
 ### Tool Specifications
@@ -140,6 +171,46 @@ src/
 - Params: `{ oldPath: string, newPath: string, apply?: boolean }`
 - Creates WorkspaceEdit with `renameFile`, triggers import updates
 - **Caveat:** Import updating relies on language extensions participating in VSCode's `onWillRenameFiles` event. TS and Pylance do; not all languages will. Our code stays generic — result quality depends on the language server.
+
+**`query_workspace_symbols`** (set query)
+- Params: `{ query: string, kind?: string, limit?: number }` (limit default 50)
+- API: `vscode.executeWorkspaceSymbolProvider(query)` → `SymbolInformation[]`
+- Optional `kind` filter (e.g. "Function", "Class") applied post-query
+- Returns: Symbols grouped by file: `name  kind  line:col`
+- Note: Query semantics vary by language server (fuzzy, prefix, substring)
+
+**`find_imports`** (set query)
+- Params: `{ file?: string, glob?: string, limit?: number }` (at least one of file/glob required, limit default 100)
+- API: `vscode.workspace.openTextDocument(uri)` → regex-parse imports
+- Language support: JS/TS (`import/require/export from`), Python (`import/from`), Go (`import`), Rust (`use/extern crate`), Java/Kotlin (`import`), C/C++ (`#include`)
+- Returns: Imports per file with line numbers and relative/external classification
+- Note: Regex-based — covers ~95% of cases, may miss edge cases in comments/strings
+
+**`get_document_symbols`** (enhanced — now supports glob)
+- Params: `{ file?: string, glob?: string, kind?: string, limit?: number }` (at least one of file/glob required, limit default 50 for glob)
+- When `file` only: identical to current behavior
+- When `glob`: runs document symbol provider on all matching files, returns multi-file tree
+- Optional `kind` filter keeps only matching symbols (preserving parent context)
+
+**`get_dependency_graph`** (set query)
+- Params: `{ glob?: string, depth?: number, limit?: number }` (glob defaults to all source files, depth default 1 max 5, limit default 200)
+- Built on `parseImports()` from import-parser — resolves relative imports to workspace files
+- Returns: Adjacency list — each file with its internal (→ file) and external ([ext] package) dependencies
+- Import resolution tries common extensions (.ts, .tsx, .js, .jsx, /index.ts, etc.)
+
+### Known Limitations & Considerations (Set Query Tools)
+
+1. **Import parser doesn't strip comments.** A commented-out import like `// import { foo } from 'bar'` will be matched as a real import. Acceptable for ~95% of real code; a comment-stripping pass can be added later if false positives become noisy.
+
+2. **`query_workspace_symbols` requires a non-empty query.** LSP's `workspace/symbol` doesn't support empty queries (most language servers return nothing). Unlike `get_document_symbols` with a glob which dumps everything, this tool requires knowing what you're searching for. The Zod schema enforces `min(1)`.
+
+3. **Dependency graph resolves relative imports only.** Package imports (e.g. `lodash`, `@scope/pkg`) are listed as `[ext]` but never resolved to `node_modules` files. The graph shows workspace-internal structure only.
+
+4. **Python relative import resolution is limited.** `from .foo import bar` and `import os` are parsed, but Python's package structure (`from mypackage.submodule import X` where `mypackage` is a workspace directory) isn't resolved — those show up as external rather than internal in the dependency graph. Fixing this would require understanding Python's `__init__.py`-based package layout.
+
+5. **`filterSymbolsByKind` clones symbols via `Object.create(Object.getPrototypeOf(sym))`.** In VSCode's extension host `DocumentSymbol` objects are plain objects so this works. If the API ever returns sealed/frozen objects it would break — could switch to just filtering without cloning since results are ephemeral.
+
+6. **`get_document_symbols` schema change is backward-compatible but `file` is now optional.** Existing callers passing `file` work identically. A call with no params now returns a text error message instead of a Zod validation error — slightly different error path but functionally equivalent.
 
 ### Verification
 
