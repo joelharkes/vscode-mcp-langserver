@@ -1,0 +1,37 @@
+import * as vscode from 'vscode';
+import { z } from 'zod';
+import { resolveUri, formatDiagnosticsReport } from '../utils/vscode-bridge';
+import { registerTool, ToolServer } from '../utils/register';
+
+const schema = {
+  file: z.string().optional().describe('File path (relative to workspace root or absolute). If omitted, returns diagnostics for all files.'),
+};
+
+export function registerDiagnosticsTool(server: ToolServer) {
+  registerTool(
+    server,
+    'get_diagnostics',
+    'Get diagnostics (errors, warnings) for a file or the entire workspace.',
+    schema,
+    async ({ file }: { file?: string }) => {
+      let diagnostics: Array<[vscode.Uri, readonly vscode.Diagnostic[]]>;
+
+      if (file) {
+        const uri = resolveUri(file);
+        const fileDiags = vscode.languages.getDiagnostics(uri);
+        diagnostics = [[uri, fileDiags]];
+      } else {
+        diagnostics = vscode.languages.getDiagnostics() as Array<[vscode.Uri, readonly vscode.Diagnostic[]]>;
+      }
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: formatDiagnosticsReport(diagnostics),
+          },
+        ],
+      };
+    }
+  );
+}
