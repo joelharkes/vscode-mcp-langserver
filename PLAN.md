@@ -100,6 +100,73 @@ Current tools are point queries (single file, single symbol). This step adds set
 - [x] Create `src/tools/get_dependency_graph.ts`
 - [x] Register in `src/tools/index.ts`
 
+### Step 7.5: Add limits to existing tools ✅
+`get_diagnostics` and `find_references` can produce huge output on large projects but have no limit parameter. Add optional `limit` to both, with summary headers showing full counts.
+
+#### 7.5a. `get_diagnostics` — add `limit` param ✅
+- [x] Add optional `limit?: number` param (default: no limit for single-file, 200 for workspace-wide)
+- [x] Summary always shows full counts (e.g. `847 errors in 123 files — showing first 200`)
+- [x] Backward compatible: omitting `limit` on single-file mode returns all diagnostics as before
+
+#### 7.5b. `find_references` — add `limit` param ✅
+- [x] Add optional `limit?: number` param (default 200)
+- [x] Summary always shows full count (e.g. `1,247 references in 89 files — showing first 200`)
+- [x] Backward compatible: existing calls without `limit` get the default cap
+
+### Step 8: Semantic Tools (Things Only a Language Server Can Do)
+These tools expose language server capabilities that grep/text analysis fundamentally cannot replicate — they require type system resolution, semantic understanding of dispatch, and generated code fixes.
+
+#### Design decisions
+- **Code actions apply mode:** By title substring match (`apply: "Add missing import"`). Most intuitive for AI agents, robust across sessions.
+- **Code actions scope:** Supports file-wide mode (just `file` param, no position) that gathers actions for all diagnostics in that file. Enables "fix all errors" in one call.
+- **Code actions command execution:** Only apply actions that have a pure `WorkspaceEdit`. Actions that only have a `Command` (which can trigger dialogs, wizards, etc.) are listed but not applied — too unpredictable for automated use.
+- **find_implementations:** Separate tool (not a mode on go_to_definition). Matches LSP's separate requests, easier for AI to discover.
+- **Type hierarchy:** Include now with graceful fallback ("Type hierarchy not supported by the language server"). Ready when LSPs catch up.
+- **Hierarchy output limit:** Default 200 entries, configurable via `limit` param up to 1000. Summary header always shows full counts regardless of limit.
+- **Hierarchy summary headers:** Both `get_call_hierarchy` and `get_type_hierarchy` return a summary line with total counts per depth level *before* the capped results. E.g. `847 incoming callers (depth 1: 12, depth 2: 835) — showing first 200`. This lets the AI know the full shape even when results are truncated, and request a higher limit if needed.
+
+#### 8a. `get_code_actions` tool
+- [ ] Create `src/tools/get_code_actions.ts`
+- [ ] Add formatter to `src/utils/vscode-bridge.ts`
+- [ ] Register in `src/tools/index.ts`
+- API: `vscode.executeCodeActionProvider(uri, range)` → `CodeAction[]`
+- Params: `{ file, line?, character?, endLine?, endCharacter?, kind?, apply?: string }` — all positions 1-based
+  - Position mode: `file` + `line` + `character` (+ optional end range) — actions at a specific location
+  - File-wide mode: just `file` — collects actions for all diagnostics in the file
+  - `kind`: filter by CodeActionKind prefix (e.g. "quickfix", "refactor", "source.organizeImports")
+  - `apply`: title substring match — applies the first action whose title contains this string (only if it has a WorkspaceEdit)
+- Returns: Numbered list of available actions with titles and kinds; if `apply` is set, applies the matched action and shows the result
+- Compound workflow: `get_diagnostics` → `get_code_actions(file, apply: "...")` → bulk auto-fix
+
+#### 8b. `get_call_hierarchy` tool
+- [ ] Create `src/tools/get_call_hierarchy.ts`
+- [ ] Add formatter to `src/utils/vscode-bridge.ts`
+- [ ] Register in `src/tools/index.ts`
+- API: `vscode.prepareCallHierarchy(uri, position)` → `CallHierarchyItem[]`, then `vscode.provideIncomingCalls(item)` / `vscode.provideOutgoingCalls(item)`
+- Params: `{ file, line, character, direction: "incoming" | "outgoing" | "both", depth?: number, limit?: number }` (1-based, depth default 1 max 3, limit default 200 max 1000)
+- Returns: Summary header with total counts per depth level (e.g. `847 incoming callers (depth 1: 12, depth 2: 835) — showing first 200`), followed by structured call tree with file locations. Summary always reflects full counts regardless of limit.
+- Why grep can't: resolves through method dispatch, overrides, aliasing, and re-exports. `find_references` gives flat locations but not caller/callee structure.
+- Not all language servers support call hierarchy — returns clear message if unavailable.
+
+#### 8c. `find_implementations` tool
+- [ ] Create `src/tools/find_implementations.ts`
+- [ ] Register in `src/tools/index.ts`
+- API: `vscode.executeImplementationProvider(uri, position)` → `Location[]`
+- Params: `{ file, line, character }` (1-based)
+- Returns: Locations of concrete implementations, grouped by file (reuses `formatLocationsGrouped`)
+- Why grep can't: resolves Go's implicit interfaces, TypeScript's structural typing, multi-level inheritance. Text search for `implements Foo` misses these.
+- Note: on concrete methods, may return the method itself. Most useful on interfaces/abstract methods.
+
+#### 8d. `get_type_hierarchy` tool
+- [ ] Create `src/tools/get_type_hierarchy.ts`
+- [ ] Add formatter to `src/utils/vscode-bridge.ts`
+- [ ] Register in `src/tools/index.ts`
+- API: `vscode.prepareTypeHierarchy(uri, position)` → `TypeHierarchyItem[]`, then `supertypes`/`subtypes`
+- Params: `{ file, line, character, direction: "supertypes" | "subtypes" | "both", depth?: number, limit?: number }` (1-based, depth default 1 max 3, limit default 200 max 1000)
+- Returns: Summary header with total counts per depth level (e.g. `847 subtypes (depth 1: 3, depth 2: 844) — showing first 200`), followed by type inheritance tree with file locations. Summary always reflects full counts regardless of limit.
+- Why grep can't: resolves multi-level inheritance, generic bounds, mixin chains.
+- LSP 3.17+ feature — not all language servers support it. Returns clear message if unavailable.
+
 ---
 
 ## Implementation Details
@@ -122,6 +189,10 @@ src/
     query_workspace_symbols.ts    # query_workspace_symbols tool (set query)
     find_imports.ts               # find_imports tool (set query)
     get_dependency_graph.ts       # get_dependency_graph tool (set query)
+    get_code_actions.ts           # get_code_actions tool (semantic)
+    get_call_hierarchy.ts         # get_call_hierarchy tool (semantic)
+    find_implementations.ts       # find_implementations tool (semantic)
+    get_type_hierarchy.ts         # get_type_hierarchy tool (semantic)
   utils/
     vscode-bridge.ts              # Helpers to convert VSCode types to plain text
     position.ts                   # Common parameter schemas (file, line, character)
@@ -132,9 +203,9 @@ src/
 ### Tool Specifications
 
 **`get_diagnostics`**
-- Params: `{ file?: string }` (optional — if omitted, returns all workspace diagnostics)
+- Params: `{ file?: string, limit?: number }` (file optional — if omitted, returns all workspace diagnostics; limit default: no limit for single-file, 200 for workspace-wide)
 - API: `vscode.languages.getDiagnostics(uri?)`
-- Returns: Compiler-style text report (1-based lines, grouped by file, summary counts, related info)
+- Returns: Compiler-style text report (1-based lines, grouped by file, summary counts, related info). Summary always shows full counts even when output is truncated.
 
 **`get_hover`**
 - Params: `{ file, line, character }` (1-based)
@@ -147,9 +218,9 @@ src/
 - Returns: Locations grouped by file (`file:line:col` format, 1-based)
 
 **`find_references`**
-- Params: `{ file, line, character }` (1-based)
+- Params: `{ file, line, character, limit?: number }` (1-based, limit default 200)
 - API: `vscode.executeReferenceProvider(uri, position)`
-- Returns: References grouped by file with count summary
+- Returns: References grouped by file with count summary. Summary always shows full count even when output is truncated.
 
 **`get_completions`**
 - Params: `{ file, line, character, limit? }` (1-based, limit default 50)
@@ -197,6 +268,31 @@ src/
 - Built on `parseImports()` from import-parser — resolves relative imports to workspace files
 - Returns: Adjacency list — each file with its internal (→ file) and external ([ext] package) dependencies
 - Import resolution tries common extensions (.ts, .tsx, .js, .jsx, /index.ts, etc.)
+
+**`get_code_actions`** (semantic)
+- Params: `{ file, line?, character?, endLine?, endCharacter?, kind?, apply?: string }` (1-based)
+- Position mode: `file` + `line` + `character` — actions at a specific location
+- File-wide mode: just `file` — collects actions for all diagnostics in the file
+- `kind`: filter by CodeActionKind prefix (e.g. "quickfix", "refactor", "source.organizeImports")
+- `apply`: title substring — applies first matching action with a WorkspaceEdit (commands not executed)
+- API: `vscode.executeCodeActionProvider(uri, range)` → `CodeAction[]`
+- Returns: Numbered list of actions with titles/kinds; if `apply` set, shows applied edit result
+
+**`get_call_hierarchy`** (semantic)
+- Params: `{ file, line, character, direction: "incoming" | "outgoing" | "both", depth?: number, limit?: number }` (1-based, depth default 1 max 3, limit default 200 max 1000)
+- API: `vscode.prepareCallHierarchy` → `vscode.provideIncomingCalls`/`vscode.provideOutgoingCalls`
+- Returns: Summary with full counts per depth, then call tree with file locations. Entries capped at `limit`; summary always reflects full counts.
+
+**`find_implementations`** (semantic)
+- Params: `{ file, line, character }` (1-based)
+- API: `vscode.executeImplementationProvider(uri, position)` → `Location[]`
+- Returns: Locations of concrete implementations, grouped by file (reuses `formatLocationsGrouped`)
+
+**`get_type_hierarchy`** (semantic)
+- Params: `{ file, line, character, direction: "supertypes" | "subtypes" | "both", depth?: number, limit?: number }` (1-based, depth default 1 max 3, limit default 200 max 1000)
+- API: `vscode.prepareTypeHierarchy` → `supertypes`/`subtypes`
+- Returns: Summary with full counts per depth, then type tree with file locations. Entries capped at `limit`; summary always reflects full counts.
+- LSP 3.17+ — returns clear message if language server doesn't support it
 
 ### Known Limitations & Considerations (Set Query Tools)
 

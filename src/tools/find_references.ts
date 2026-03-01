@@ -1,25 +1,56 @@
 import * as vscode from 'vscode';
+import { z } from 'zod';
 import { resolveUri, formatLocationsGrouped } from '../utils/vscode-bridge';
 import { positionParams } from '../utils/position';
 import { type ToolServer, registerTool } from '../utils/register';
+
+const schema = {
+  ...positionParams,
+  limit: z.number().int().min(1).optional().describe('Max references to return (default 200)'),
+};
 
 export function registerReferencesTool(server: ToolServer) {
   registerTool(
     server,
     'find_references',
     'Find all references to a symbol at a position in a file.',
-    positionParams,
-    async ({ file, line, character }: { file: string; line: number; character: number }) => {
+    schema,
+    async ({
+      file,
+      line,
+      character,
+      limit,
+    }: {
+      file: string;
+      line: number;
+      character: number;
+      limit?: number;
+    }) => {
       const uri = resolveUri(file);
       const pos = new vscode.Position(line - 1, character - 1);
+      const maxResults = limit ?? 200;
 
-      const locations = await vscode.commands.executeCommand<vscode.Location[]>(
+      const allLocations = await vscode.commands.executeCommand<vscode.Location[]>(
         'vscode.executeReferenceProvider',
         uri,
         pos
       );
 
-      const text = formatLocationsGrouped(locations || [], 'references');
+      const locations = allLocations || [];
+      const totalCount = locations.length;
+      const truncated = totalCount > maxResults;
+      const limited = truncated ? locations.slice(0, maxResults) : locations;
+
+      let text = formatLocationsGrouped(limited, 'references');
+
+      // Replace the summary line with full count if truncated
+      if (truncated) {
+        const summaryLine = text.split('\n')[0];
+        text = text.replace(
+          summaryLine,
+          `${totalCount} references total — showing first ${maxResults}`
+        );
+      }
 
       return {
         content: [{ type: 'text' as const, text }],
