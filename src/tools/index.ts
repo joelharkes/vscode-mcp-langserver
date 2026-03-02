@@ -10,6 +10,10 @@ import { registerMoveFileTool } from './move_file';
 import { registerWorkspaceSymbolsTool } from './query_workspace_symbols';
 import { registerFindImportsTool } from './find_imports';
 import { registerDependencyGraphTool } from './get_dependency_graph';
+import { registerCodeActionsTool } from './get_code_actions';
+import { registerCallHierarchyTool } from './get_call_hierarchy';
+import { registerImplementationsTool } from './find_implementations';
+import { registerTypeHierarchyTool } from './get_type_hierarchy';
 
 /**
  * Register all MCP tools on the server.
@@ -26,4 +30,8 @@ export function registerAllTools(server: ToolServer) {
   registerWorkspaceSymbolsTool(server);
   registerFindImportsTool(server);
   registerDependencyGraphTool(server);
+  registerCodeActionsTool(server);
+  registerCallHierarchyTool(server);
+  registerImplementationsTool(server);
+  registerTypeHierarchyTool(server);
 }

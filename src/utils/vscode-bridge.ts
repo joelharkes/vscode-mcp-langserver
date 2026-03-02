@@ -441,6 +441,123 @@ export function formatDependencyGraph(
 }
 
 /**
+ * Format a call hierarchy result with summary header showing full counts per depth.
+ */
+export function formatCallHierarchy(
+  direction: 'incoming' | 'outgoing',
+  entries: Array<{ name: string; kind: string; file: string; line: number; col: number; depth: number }>,
+  countsByDepth: number[],
+  maxEntries: number
+): string {
+  const totalCount = countsByDepth.reduce((sum, c) => sum + c, 0);
+  const label = direction === 'incoming' ? 'incoming callers' : 'outgoing callees';
+
+  if (totalCount === 0) {
+    return `No ${label} found.`;
+  }
+
+  // Summary header with counts per depth
+  const depthParts = countsByDepth.map((c, i) => `depth ${i + 1}: ${c}`).join(', ');
+  const truncNote = totalCount > maxEntries ? ` — showing first ${maxEntries}` : '';
+  const summary = `${totalCount} ${label} (${depthParts})${truncNote}`;
+
+  const lines: string[] = [summary, ''];
+
+  // Group entries by file
+  const byFile = new Map<string, Array<{ name: string; kind: string; line: number; col: number; depth: number }>>();
+  for (const entry of entries) {
+    const rel = entry.file.startsWith('/') ? path.relative(getWorkspaceRoot(), entry.file) : entry.file;
+    if (!byFile.has(rel)) {
+      byFile.set(rel, []);
+    }
+    byFile.get(rel)!.push(entry);
+  }
+
+  for (const [file, items] of byFile) {
+    lines.push(file);
+    for (const item of items) {
+      const depthTag = item.depth > 1 ? `  [depth ${item.depth}]` : '';
+      lines.push(`  ${item.name}  ${item.kind}  ${item.line}:${item.col}${depthTag}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * Format a type hierarchy result with summary header showing full counts per depth.
+ */
+export function formatTypeHierarchy(
+  direction: 'supertypes' | 'subtypes',
+  entries: Array<{ name: string; kind: string; file: string; line: number; col: number; depth: number }>,
+  countsByDepth: number[],
+  maxEntries: number
+): string {
+  const totalCount = countsByDepth.reduce((sum, c) => sum + c, 0);
+
+  if (totalCount === 0) {
+    return `No ${direction} found.`;
+  }
+
+  const depthParts = countsByDepth.map((c, i) => `depth ${i + 1}: ${c}`).join(', ');
+  const truncNote = totalCount > maxEntries ? ` — showing first ${maxEntries}` : '';
+  const summary = `${totalCount} ${direction} (${depthParts})${truncNote}`;
+
+  const lines: string[] = [summary, ''];
+
+  // Group entries by file
+  const byFile = new Map<string, Array<{ name: string; kind: string; line: number; col: number; depth: number }>>();
+  for (const entry of entries) {
+    const rel = entry.file.startsWith('/') ? path.relative(getWorkspaceRoot(), entry.file) : entry.file;
+    if (!byFile.has(rel)) {
+      byFile.set(rel, []);
+    }
+    byFile.get(rel)!.push(entry);
+  }
+
+  for (const [file, items] of byFile) {
+    lines.push(file);
+    for (const item of items) {
+      const depthTag = item.depth > 1 ? `  [depth ${item.depth}]` : '';
+      lines.push(`  ${item.name}  ${item.kind}  ${item.line}:${item.col}${depthTag}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * Format a list of code actions as a numbered list.
+ */
+export function formatCodeActions(actions: vscode.CodeAction[]): string {
+  const lines: string[] = [`${actions.length} code ${actions.length === 1 ? 'action' : 'actions'}`, ''];
+  for (let i = 0; i < actions.length; i++) {
+    const a = actions[i];
+    const kindStr = a.kind?.value ? `  [${a.kind.value}]` : '';
+    const hasEdit = a.edit ? '' : '  (command only)';
+    lines.push(`${i + 1}. ${a.title}${kindStr}${hasEdit}`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Format a summary of what a WorkspaceEdit changed after applying a code action.
+ */
+export function formatAppliedEdit(edit: vscode.WorkspaceEdit, title: string): string {
+  const lines: string[] = [`Applied: ${title}`, ''];
+
+  for (const [uri, textEdits] of edit.entries()) {
+    const edits = textEdits.filter((e): e is vscode.TextEdit => e instanceof vscode.TextEdit);
+    if (edits.length === 0) continue;
+    lines.push(`${toRelativePath(uri)} (${edits.length} ${edits.length === 1 ? 'edit' : 'edits'})`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Convert a WorkspaceEdit to a plain JSON object.
  */
 export function workspaceEditToJson(edit: vscode.WorkspaceEdit) {

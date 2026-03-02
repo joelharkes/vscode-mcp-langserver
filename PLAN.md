@@ -113,7 +113,7 @@ Current tools are point queries (single file, single symbol). This step adds set
 - [x] Summary always shows full count (e.g. `1,247 references in 89 files — showing first 200`)
 - [x] Backward compatible: existing calls without `limit` get the default cap
 
-### Step 8: Semantic Tools (Things Only a Language Server Can Do)
+### Step 8: Semantic Tools (Things Only a Language Server Can Do) ✅
 These tools expose language server capabilities that grep/text analysis fundamentally cannot replicate — they require type system resolution, semantic understanding of dispatch, and generated code fixes.
 
 #### Design decisions
@@ -125,10 +125,10 @@ These tools expose language server capabilities that grep/text analysis fundamen
 - **Hierarchy output limit:** Default 200 entries, configurable via `limit` param up to 1000. Summary header always shows full counts regardless of limit.
 - **Hierarchy summary headers:** Both `get_call_hierarchy` and `get_type_hierarchy` return a summary line with total counts per depth level *before* the capped results. E.g. `847 incoming callers (depth 1: 12, depth 2: 835) — showing first 200`. This lets the AI know the full shape even when results are truncated, and request a higher limit if needed.
 
-#### 8a. `get_code_actions` tool
-- [ ] Create `src/tools/get_code_actions.ts`
-- [ ] Add formatter to `src/utils/vscode-bridge.ts`
-- [ ] Register in `src/tools/index.ts`
+#### 8a. `get_code_actions` tool ✅
+- [x] Create `src/tools/get_code_actions.ts`
+- [x] Add formatter to `src/utils/vscode-bridge.ts`
+- [x] Register in `src/tools/index.ts`
 - API: `vscode.executeCodeActionProvider(uri, range)` → `CodeAction[]`
 - Params: `{ file, line?, character?, endLine?, endCharacter?, kind?, apply?: string }` — all positions 1-based
   - Position mode: `file` + `line` + `character` (+ optional end range) — actions at a specific location
@@ -138,29 +138,29 @@ These tools expose language server capabilities that grep/text analysis fundamen
 - Returns: Numbered list of available actions with titles and kinds; if `apply` is set, applies the matched action and shows the result
 - Compound workflow: `get_diagnostics` → `get_code_actions(file, apply: "...")` → bulk auto-fix
 
-#### 8b. `get_call_hierarchy` tool
-- [ ] Create `src/tools/get_call_hierarchy.ts`
-- [ ] Add formatter to `src/utils/vscode-bridge.ts`
-- [ ] Register in `src/tools/index.ts`
+#### 8b. `get_call_hierarchy` tool ✅
+- [x] Create `src/tools/get_call_hierarchy.ts`
+- [x] Add formatter to `src/utils/vscode-bridge.ts`
+- [x] Register in `src/tools/index.ts`
 - API: `vscode.prepareCallHierarchy(uri, position)` → `CallHierarchyItem[]`, then `vscode.provideIncomingCalls(item)` / `vscode.provideOutgoingCalls(item)`
 - Params: `{ file, line, character, direction: "incoming" | "outgoing" | "both", depth?: number, limit?: number }` (1-based, depth default 1 max 3, limit default 200 max 1000)
 - Returns: Summary header with total counts per depth level (e.g. `847 incoming callers (depth 1: 12, depth 2: 835) — showing first 200`), followed by structured call tree with file locations. Summary always reflects full counts regardless of limit.
 - Why grep can't: resolves through method dispatch, overrides, aliasing, and re-exports. `find_references` gives flat locations but not caller/callee structure.
 - Not all language servers support call hierarchy — returns clear message if unavailable.
 
-#### 8c. `find_implementations` tool
-- [ ] Create `src/tools/find_implementations.ts`
-- [ ] Register in `src/tools/index.ts`
+#### 8c. `find_implementations` tool ✅
+- [x] Create `src/tools/find_implementations.ts`
+- [x] Register in `src/tools/index.ts`
 - API: `vscode.executeImplementationProvider(uri, position)` → `Location[]`
 - Params: `{ file, line, character }` (1-based)
 - Returns: Locations of concrete implementations, grouped by file (reuses `formatLocationsGrouped`)
 - Why grep can't: resolves Go's implicit interfaces, TypeScript's structural typing, multi-level inheritance. Text search for `implements Foo` misses these.
 - Note: on concrete methods, may return the method itself. Most useful on interfaces/abstract methods.
 
-#### 8d. `get_type_hierarchy` tool
-- [ ] Create `src/tools/get_type_hierarchy.ts`
-- [ ] Add formatter to `src/utils/vscode-bridge.ts`
-- [ ] Register in `src/tools/index.ts`
+#### 8d. `get_type_hierarchy` tool ✅
+- [x] Create `src/tools/get_type_hierarchy.ts`
+- [x] Add formatter to `src/utils/vscode-bridge.ts`
+- [x] Register in `src/tools/index.ts`
 - API: `vscode.prepareTypeHierarchy(uri, position)` → `TypeHierarchyItem[]`, then `supertypes`/`subtypes`
 - Params: `{ file, line, character, direction: "supertypes" | "subtypes" | "both", depth?: number, limit?: number }` (1-based, depth default 1 max 3, limit default 200 max 1000)
 - Returns: Summary header with total counts per depth level (e.g. `847 subtypes (depth 1: 3, depth 2: 844) — showing first 200`), followed by type inheritance tree with file locations. Summary always reflects full counts regardless of limit.
