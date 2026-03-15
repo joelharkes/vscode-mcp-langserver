@@ -235,7 +235,7 @@ src/
 **`rename_symbol`**
 - Params: `{ file: string, line: number, character: number, newName: string, apply?: boolean }`
 - API: `vscode.executeRenameProvider(uri, position, newName)` → WorkspaceEdit
-- If `apply: false` (default): serialize edit to JSON
+- If `apply: false` (default): human-readable text preview showing change count, affected files, and locations
 - If `apply: true`: call `vscode.workspace.applyEdit(edit)`
 
 **`move_file`** (stretch goal)

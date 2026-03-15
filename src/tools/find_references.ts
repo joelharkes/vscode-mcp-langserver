@@ -38,6 +38,7 @@ export function registerReferencesTool(server: ToolServer) {
 
       const locations = allLocations || [];
       const totalCount = locations.length;
+      const totalFiles = new Set(locations.map(l => l.uri.toString())).size;
       const truncated = totalCount > maxResults;
       const limited = truncated ? locations.slice(0, maxResults) : locations;
 
@@ -48,7 +49,7 @@ export function registerReferencesTool(server: ToolServer) {
         const summaryLine = text.split('\n')[0];
         text = text.replace(
           summaryLine,
-          `${totalCount} references total — showing first ${maxResults}`
+          `${totalCount.toLocaleString()} references in ${totalFiles.toLocaleString()} files — showing first ${maxResults}`
         );
       }
 
