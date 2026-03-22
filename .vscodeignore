@@ -4,6 +4,7 @@ src/**
 .gitignore
 tsconfig.json
 esbuild.mjs
+**/*.js.map
 node_modules/**
 PLAN.md
 images/icon.svg
