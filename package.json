@@ -2,7 +2,7 @@
   "name": "mcp-langserver",
   "displayName": "MCP Language Server Bridge",
   "description": "Expose VSCode language server features as MCP tools for Claude Code",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "joelharkes",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -17,6 +17,13 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "keywords": [
+    "mcp",
+    "language-server",
+    "claude",
+    "ai",
+    "code-intelligence"
+  ],
   "categories": [
     "Other"
   ],

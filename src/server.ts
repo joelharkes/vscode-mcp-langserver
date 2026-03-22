@@ -15,7 +15,7 @@ export async function startServer(context: vscode.ExtensionContext): Promise<voi
   // Create MCP server
   mcpServer = new McpServer({
     name: 'vscode-mcp-langserver',
-    version: '0.0.1',
+    version: '1.0.0',
   });
 
   // Register all tools
