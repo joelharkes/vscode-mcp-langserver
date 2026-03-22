@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1d2e"/>
+      <stop offset="100%" stop-color="#111320"/>
+    </linearGradient>
+    <linearGradient id="bridge-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5b8af5"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#34d6b0"/>
+    </linearGradient>
+    <linearGradient id="glow-l" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5b8af5" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#5b8af5" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glow-r" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#34d6b0" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#34d6b0" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="22" fill="url(#bg)"/>
+
+  <!-- Subtle grid dots -->
+  <g opacity="0.06" fill="#ffffff">
+    <circle cx="44" cy="44" r="1.2"/><circle cx="84" cy="44" r="1.2"/><circle cx="124" cy="44" r="1.2"/><circle cx="164" cy="44" r="1.2"/><circle cx="204" cy="44" r="1.2"/>
+    <circle cx="44" cy="84" r="1.2"/><circle cx="84" cy="84" r="1.2"/><circle cx="124" cy="84" r="1.2"/><circle cx="164" cy="84" r="1.2"/><circle cx="204" cy="84" r="1.2"/>
+    <circle cx="44" cy="164" r="1.2"/><circle cx="84" cy="164" r="1.2"/><circle cx="124" cy="164" r="1.2"/><circle cx="164" cy="164" r="1.2"/><circle cx="204" cy="164" r="1.2"/>
+    <circle cx="44" cy="204" r="1.2"/><circle cx="84" cy="204" r="1.2"/><circle cx="124" cy="204" r="1.2"/><circle cx="164" cy="204" r="1.2"/><circle cx="204" cy="204" r="1.2"/>
+  </g>
+
+  <!-- Left node: Language Server -->
+  <rect x="22" y="98" width="64" height="60" rx="10" fill="#1e2240" stroke="#5b8af5" stroke-width="1.5"/>
+  <rect x="32" y="109" width="44" height="5" rx="2" fill="#5b8af5" opacity="0.9"/>
+  <rect x="32" y="119" width="32" height="4" rx="2" fill="#5b8af5" opacity="0.5"/>
+  <rect x="32" y="128" width="38" height="4" rx="2" fill="#5b8af5" opacity="0.5"/>
+  <rect x="32" y="137" width="24" height="4" rx="2" fill="#5b8af5" opacity="0.35"/>
+  <!-- LS pulse dot -->
+  <circle cx="54" cy="148" r="4" fill="#5b8af5" opacity="0.85"/>
+
+  <!-- Right node: AI / MCP Tool -->
+  <rect x="170" y="98" width="64" height="60" rx="10" fill="#1a2b2e" stroke="#34d6b0" stroke-width="1.5"/>
+  <!-- Brain / AI icon: simple hex nodes -->
+  <circle cx="202" cy="118" r="5" fill="none" stroke="#34d6b0" stroke-width="1.5"/>
+  <circle cx="192" cy="133" r="4" fill="none" stroke="#34d6b0" stroke-width="1.2"/>
+  <circle cx="212" cy="133" r="4" fill="none" stroke="#34d6b0" stroke-width="1.2"/>
+  <line x1="197" y1="121" x2="194" y2="129" stroke="#34d6b0" stroke-width="1" opacity="0.7"/>
+  <line x1="207" y1="121" x2="210" y2="129" stroke="#34d6b0" stroke-width="1" opacity="0.7"/>
+  <line x1="196" y1="133" x2="208" y2="133" stroke="#34d6b0" stroke-width="1" opacity="0.7"/>
+  <!-- AI pulse dot -->
+  <circle cx="202" cy="148" r="4" fill="#34d6b0" opacity="0.85"/>
+
+  <!-- Bridge arch -->
+  <!-- Left glow fill under arch -->
+  <rect x="86" y="120" width="40" height="16" fill="url(#glow-l)" rx="2"/>
+  <rect x="130" y="120" width="40" height="16" fill="url(#glow-r)" rx="2"/>
+
+  <!-- Arch path -->
+  <path d="M86 136 Q128 82 170 136" fill="none" stroke="url(#bridge-grad)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Bridge deck (horizontal connector) -->
+  <line x1="86" y1="136" x2="170" y2="136" stroke="url(#bridge-grad)" stroke-width="2.5"/>
+
+  <!-- Bridge verticals (suspenders) -->
+  <line x1="104" y1="124" x2="104" y2="136" stroke="url(#bridge-grad)" stroke-width="1.5" opacity="0.6"/>
+  <line x1="119" y1="113" x2="119" y2="136" stroke="url(#bridge-grad)" stroke-width="1.5" opacity="0.6"/>
+  <line x1="128" y1="110" x2="128" y2="136" stroke="url(#bridge-grad)" stroke-width="1.5" opacity="0.7"/>
+  <line x1="137" y1="113" x2="137" y2="136" stroke="url(#bridge-grad)" stroke-width="1.5" opacity="0.6"/>
+  <line x1="152" y1="124" x2="152" y2="136" stroke="url(#bridge-grad)" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Left cable anchor -->
+  <circle cx="86" cy="136" r="4" fill="#5b8af5"/>
+  <!-- Right cable anchor -->
+  <circle cx="170" cy="136" r="4" fill="#34d6b0"/>
+  <!-- Top keystone -->
+  <circle cx="128" cy="100" r="5" fill="#a78bfa"/>
+
+  <!-- Data flow packets (left to right) -->
+  <rect x="95" y="133" width="8" height="6" rx="2" fill="#5b8af5" opacity="0.8"/>
+  <rect x="140" y="133" width="8" height="6" rx="2" fill="#34d6b0" opacity="0.8"/>
+
+  <!-- Bottom label -->
+  <text x="128" y="188" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="600" fill="#ffffff" opacity="0.55" letter-spacing="1.5">MCP BRIDGE</text>
+</svg>

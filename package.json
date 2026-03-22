@@ -5,6 +5,11 @@
   "version": "0.0.1",
   "publisher": "joelharkes",
   "license": "MIT",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joelharkes/vscode-mcp-langserver"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
