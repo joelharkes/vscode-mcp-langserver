@@ -3,6 +3,7 @@
 src/**
 .gitignore
 tsconfig.json
+esbuild.mjs
 node_modules/**
 PLAN.md
 images/icon.svg
